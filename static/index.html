@@ -16,9 +16,25 @@
   <section class="card">
     <h2>Nouvelle traduction</h2>
     <form id="job-form">
-      <label>
+      <div class="mode-toggle">
+        <label class="radio inline">
+          <input type="radio" name="mode" value="single" checked>
+          <span>1 vidéo</span>
+        </label>
+        <label class="radio inline">
+          <input type="radio" name="mode" value="batch">
+          <span>📚 Mode batch (plusieurs URLs)</span>
+        </label>
+      </div>
+
+      <label id="single-url-label">
         URL vidéo (YouTube, X, etc.) ou chemin local
-        <input type="text" id="url" name="url" placeholder="https://youtube.com/watch?v=..." required>
+        <input type="text" id="url" name="url" placeholder="https://youtube.com/watch?v=..." >
+      </label>
+
+      <label id="batch-urls-label" class="hidden">
+        URLs (une par ligne)
+        <textarea id="urls" name="urls" rows="5" placeholder="https://youtube.com/watch?v=...&#10;https://x.com/..."></textarea>
       </label>
 
       <div class="row">
@@ -108,9 +124,16 @@
   <section class="card hidden" id="job-section">
     <h2>Job en cours</h2>
     <div id="job-title" class="job-title"></div>
+    <div class="progress-bar-wrap hidden" id="progress-bar-wrap">
+      <div class="progress-bar" id="progress-bar-fill"></div>
+      <span class="progress-bar-label" id="progress-bar-label"></span>
+    </div>
     <div class="progress-list" id="progress-list"></div>
     <div class="job-cost" id="job-cost"></div>
-    <a id="download-link" href="#" class="download-btn hidden">⬇️ Télécharger le MP4 FR</a>
+    <div class="download-row hidden" id="download-row">
+      <a id="download-link" href="#" class="download-btn">⬇️ MP4 FR</a>
+      <a id="srt-link" href="#" class="download-btn srt-btn">📝 Sous-titres .srt</a>
+    </div>
   </section>
 
   <section class="card">

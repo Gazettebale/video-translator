@@ -18,10 +18,11 @@ ROOT = Path(__file__).parent
 load_dotenv(ROOT / ".env", override=True)
 
 from pipeline.download import download_video, use_local_file
-from pipeline.transcribe import transcribe
+from pipeline.transcribe import transcribe, Segment
 from pipeline.translate import translate
 from pipeline.synthesize import synthesize_segments
 from pipeline.mux import build_audio_track, remux, video_duration
+from pipeline.srt import write_srt
 
 OUTPUT_DIR = ROOT / "output"
 OUTPUT_DIR.mkdir(exist_ok=True)
@@ -114,9 +115,20 @@ async def run_job(job_id: str, req: JobRequest):
         push("downloaded", title=title)
 
         push("transcribing", message=f"Whisper ({req.whisper_model}) en cours...")
+
+        last_pct = {"v": -1}
+        def whisper_progress(current, total):
+            pct = int((current / total) * 100) if total else 0
+            if pct != last_pct["v"] and pct % 5 == 0:
+                last_pct["v"] = pct
+                push("transcribing_progress", percent=pct, current_sec=round(current, 1), total_sec=round(total, 1))
+
         segments_en = await loop.run_in_executor(
             None,
-            lambda: transcribe(audio_path, work_dir / "transcript.json", model_size=req.whisper_model),
+            lambda: transcribe(
+                audio_path, work_dir / "transcript.json",
+                model_size=req.whisper_model, progress_cb=whisper_progress,
+            ),
         )
         push("transcribed", segments=len(segments_en))
 
@@ -157,16 +169,22 @@ async def run_job(job_id: str, req: JobRequest):
             lambda: remux(video_path, fr_audio, out_path, keep_original=req.keep_original_audio),
         )
 
+        srt_name = f"{video_path.stem}_FR_{job_id[:8]}.srt"
+        srt_path = OUTPUT_DIR / srt_name
+        write_srt(segments_fr, srt_path)
+
         total_cost = round(trans_cost + voice_cost, 3)
         job["output_file"] = out_name
+        job["srt_file"] = srt_name
         job["total_cost_eur"] = total_cost
-        push("done", output_file=out_name, total_cost_eur=total_cost)
+        push("done", output_file=out_name, srt_file=srt_name, total_cost_eur=total_cost)
 
         append_history({
             "id": job_id,
             "title": title,
             "url": req.url,
             "output_file": out_name,
+            "srt_file": srt_name,
             "total_cost_eur": total_cost,
             "quality_translation": req.quality_translation,
             "quality_voice": req.quality_voice,
@@ -184,6 +202,166 @@ async def create_job(req: JobRequest):
     JOBS[job_id] = {"id": job_id, "events": [], "status_event": "pending"}
     asyncio.create_task(run_job(job_id, req))
     return {"job_id": job_id}
+
+
+class BatchRequest(BaseModel):
+    urls: list[str]
+    quality_translation: str = "free"
+    quality_voice: str = "free"
+    voice_clone: bool = False
+    piper_voice: str = "siwis"
+    keep_original_audio: bool = False
+    whisper_model: str = "large-v3"
+    natural_pace: bool = True
+
+
+async def run_batch(batch_id: str, req: BatchRequest):
+    batch = JOBS[batch_id]
+    for i, url in enumerate(req.urls, 1):
+        batch["events"].append({
+            "event": "batch_item_start", "ts": time.time(),
+            "index": i, "total": len(req.urls), "url": url,
+        })
+        sub = JobRequest(
+            url=url,
+            quality_translation=req.quality_translation,
+            quality_voice=req.quality_voice,
+            voice_clone=req.voice_clone,
+            piper_voice=req.piper_voice,
+            keep_original_audio=req.keep_original_audio,
+            whisper_model=req.whisper_model,
+            natural_pace=req.natural_pace,
+        )
+        sub_id = uuid.uuid4().hex
+        JOBS[sub_id] = {"id": sub_id, "events": [], "status_event": "pending"}
+        await run_job(sub_id, sub)
+        batch["events"].append({
+            "event": "batch_item_done", "ts": time.time(),
+            "index": i, "total": len(req.urls),
+            "child_job_id": sub_id,
+            "output_file": JOBS[sub_id].get("output_file"),
+            "srt_file": JOBS[sub_id].get("srt_file"),
+            "total_cost_eur": JOBS[sub_id].get("total_cost_eur"),
+        })
+    batch["events"].append({"event": "done", "ts": time.time()})
+
+
+@app.post("/api/batch")
+async def create_batch(req: BatchRequest):
+    if not req.urls:
+        raise HTTPException(400, "Aucune URL fournie")
+    batch_id = uuid.uuid4().hex
+    JOBS[batch_id] = {"id": batch_id, "events": [], "status_event": "pending", "is_batch": True}
+    asyncio.create_task(run_batch(batch_id, req))
+    return {"job_id": batch_id, "count": len(req.urls)}
+
+
+class RerenderRequest(BaseModel):
+    source_job_id: str
+    quality_translation: str = "free"
+    voice: str = "siwis"
+    natural_pace: bool = True
+    keep_original_audio: bool = False
+
+
+async def run_rerender(job_id: str, req: RerenderRequest):
+    job = JOBS[job_id]
+    def push(event: str, **data):
+        job["events"].append({"event": event, "ts": time.time(), **data})
+
+    try:
+        src_dir = ROOT / "cache" / f"job_{req.source_job_id}"
+        if not src_dir.exists():
+            push("error", message=f"Job source introuvable : {req.source_job_id}")
+            return
+
+        transcript_file = src_dir / f"transcript_translate_{req.quality_translation}.json"
+        if not transcript_file.exists():
+            push("error", message=f"Pas de transcript {req.quality_translation} pour ce job source")
+            return
+
+        push("started", message="Régénération depuis cache...")
+        loop = asyncio.get_event_loop()
+        data = json.loads(transcript_file.read_text())
+        segments_fr = [Segment(**s) for s in data["segments"]]
+
+        video_files = list(src_dir.glob("*.mp4"))
+        if not video_files:
+            push("error", message="MP4 source manquant")
+            return
+        video_path = video_files[0]
+
+        push("synthesizing", message=f"Synthèse Piper ({req.voice})...")
+        seg_paths, _ = await loop.run_in_executor(
+            None,
+            lambda: synthesize_segments(
+                segments_fr, audio_ref=None,
+                out_dir=ROOT / "cache" / f"job_{job_id}" / "tts",
+                mode="free", voice_clone=False, piper_voice=req.voice,
+            ),
+        )
+
+        push("muxing", message="Assemblage final...")
+        total_dur = video_duration(video_path)
+        fr_audio = await loop.run_in_executor(
+            None,
+            lambda: build_audio_track(
+                segments_fr, seg_paths,
+                ROOT / "cache" / f"job_{job_id}" / "build", total_dur,
+                natural_pace=req.natural_pace,
+            ),
+        )
+
+        suffix = f"rerender_{req.quality_translation}_{req.voice}_{'natural' if req.natural_pace else 'strict'}_{job_id[:6]}"
+        out_name = f"{video_path.stem}_FR_{suffix}.mp4"
+        out_path = OUTPUT_DIR / out_name
+        await loop.run_in_executor(
+            None,
+            lambda: remux(video_path, fr_audio, out_path, keep_original=req.keep_original_audio),
+        )
+
+        srt_name = f"{video_path.stem}_FR_{suffix}.srt"
+        write_srt(segments_fr, OUTPUT_DIR / srt_name)
+
+        job["output_file"] = out_name
+        push("done", output_file=out_name, srt_file=srt_name, total_cost_eur=0.0)
+
+        src_history = next((h for h in load_history() if h["id"] == req.source_job_id), {})
+        title = src_history.get("title", video_path.stem) + f" [re-render {req.voice}]"
+        append_history({
+            "id": job_id,
+            "title": title,
+            "url": src_history.get("url", "(rerender)"),
+            "output_file": out_name,
+            "srt_file": srt_name,
+            "total_cost_eur": 0.0,
+            "quality_translation": req.quality_translation,
+            "quality_voice": "free",
+            "piper_voice": req.voice,
+            "natural_pace": req.natural_pace,
+            "rerender_of": req.source_job_id,
+            "ts": time.time(),
+        })
+    except Exception as e:
+        push("error", message=str(e), traceback=traceback.format_exc())
+
+
+@app.post("/api/rerender")
+async def create_rerender(req: RerenderRequest):
+    job_id = uuid.uuid4().hex
+    JOBS[job_id] = {"id": job_id, "events": [], "status_event": "pending"}
+    asyncio.create_task(run_rerender(job_id, req))
+    return {"job_id": job_id}
+
+
+@app.get("/output/{filename}/srt")
+async def download_srt(filename: str):
+    """Routine pour télécharger le .srt associé à un .mp4"""
+    base = filename.removesuffix(".mp4").removesuffix(".srt")
+    srt = OUTPUT_DIR / f"{base}.srt"
+    if not srt.exists():
+        raise HTTPException(404, "SRT introuvable")
+    return FileResponse(srt, media_type="text/plain", filename=srt.name)
 
 
 @app.get("/api/jobs/{job_id}")

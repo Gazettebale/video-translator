@@ -21,10 +21,12 @@ def transcribe(
     model_size: str = "large-v3",
     device: str = "auto",
     language: str = "en",
+    progress_cb=None,
 ) -> list[Segment]:
     """
     Transcrit l'audio en segments timestampés.
     Cache le résultat dans cache_path (JSON).
+    progress_cb(current_sec, total_sec) appelé au fil des segments.
     """
     if cache_path.exists():
         console.log(f"[yellow]Cache hit transcription[/] {cache_path.name}")
@@ -65,10 +67,16 @@ def transcribe(
     def flush_checkpoint():
         cache_path.write_text(json.dumps([asdict(s) for s in segments], ensure_ascii=False, indent=2))
 
+    total = info.duration
     for s in segments_iter:
         seg = Segment(start=s.start, end=s.end, text=s.text.strip())
         segments.append(seg)
         console.log(f"  [{seg.start:6.1f}s] {seg.text[:80]}")
+        if progress_cb:
+            try:
+                progress_cb(seg.end, total)
+            except Exception:
+                pass
         if len(segments) % checkpoint_every == 0:
             flush_checkpoint()
 
