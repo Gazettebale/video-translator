@@ -59,11 +59,18 @@ def transcribe(
     console.log(f"[green]Audio détecté[/] langue={info.language} durée={info.duration:.1f}s")
 
     segments = []
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    checkpoint_every = 30
+
+    def flush_checkpoint():
+        cache_path.write_text(json.dumps([asdict(s) for s in segments], ensure_ascii=False, indent=2))
+
     for s in segments_iter:
         seg = Segment(start=s.start, end=s.end, text=s.text.strip())
         segments.append(seg)
         console.log(f"  [{seg.start:6.1f}s] {seg.text[:80]}")
+        if len(segments) % checkpoint_every == 0:
+            flush_checkpoint()
 
-    cache_path.parent.mkdir(parents=True, exist_ok=True)
-    cache_path.write_text(json.dumps([asdict(s) for s in segments], ensure_ascii=False, indent=2))
+    flush_checkpoint()
     return segments

@@ -24,6 +24,8 @@ def download_video(url: str, work_dir: Path) -> tuple[Path, Path, str]:
             "-o", video_template,
             "--no-playlist",
             "--restrict-filenames",
+            "--concurrent-fragments", "16",
+            "--retries", "5",
             url,
         ],
         check=True,
