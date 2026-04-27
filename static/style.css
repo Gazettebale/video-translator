@@ -1,0 +1,148 @@
+:root {
+  --bg: #0e0e10;
+  --card: #1a1a1f;
+  --border: #2a2a32;
+  --text: #e7e7ea;
+  --muted: #8a8a93;
+  --accent: #6c5ce7;
+  --accent-hover: #5a4cd1;
+  --success: #18b364;
+  --warning: #f1c40f;
+  --error: #e74c3c;
+  --cost: #f39c12;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+header {
+  padding: 32px 24px 16px;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+}
+header h1 { font-size: 28px; margin-bottom: 4px; }
+header .subtitle { color: var(--muted); font-size: 14px; }
+main {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 24px;
+}
+.card h2 { font-size: 18px; margin-bottom: 16px; }
+.hidden { display: none !important; }
+.muted { color: var(--muted); font-size: 13px; }
+
+form label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); margin-bottom: 12px; }
+input[type="text"] {
+  background: #0a0a0d;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--text);
+  font-size: 14px;
+  font-family: inherit;
+}
+input[type="text"]:focus { outline: none; border-color: var(--accent); }
+.row { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+.row > * { flex: 1 1 220px; }
+fieldset {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+legend { padding: 0 6px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.radio, .check {
+  display: flex;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text);
+  margin-bottom: 6px;
+  cursor: pointer;
+}
+.radio input, .check input { accent-color: var(--accent); }
+.radio em, .check em { color: var(--cost); font-style: normal; font-size: 12px; }
+.cost { color: var(--cost); font-style: normal; font-size: 12px; }
+.estimate-bar {
+  background: #0a0a0d;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 16px 0;
+  font-size: 14px;
+}
+button[type="submit"] {
+  width: 100%;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+button[type="submit"]:hover { background: var(--accent-hover); }
+button[type="submit"]:disabled { background: #333; cursor: not-allowed; }
+.job-title { font-weight: 600; margin-bottom: 12px; }
+.progress-list { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+.progress-step {
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.progress-step.done { color: var(--success); }
+.progress-step.active { color: var(--warning); background: #2a2614; }
+.progress-step.error { color: var(--error); background: #311714; }
+.job-cost {
+  background: #0a0a0d;
+  border-radius: 6px;
+  padding: 10px;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+.download-btn {
+  display: inline-block;
+  background: var(--success);
+  color: white;
+  text-decoration: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+}
+.download-btn:hover { opacity: 0.9; }
+.history-list { display: flex; flex-direction: column; gap: 8px; }
+.history-item {
+  background: #0a0a0d;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+.history-item a { color: var(--accent); text-decoration: none; font-weight: 500; }
+.history-item a:hover { text-decoration: underline; }
+.history-item .meta { color: var(--muted); font-size: 12px; }
+input[disabled] + span, label.radio:has(input[disabled]) { opacity: 0.5; }

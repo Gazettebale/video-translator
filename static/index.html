@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Video Translator FR</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <h1>🎬 Video Translator FR</h1>
+  <p class="subtitle">Traduis n'importe quelle vidéo EN → FR avec audio synthétisé</p>
+</header>
+
+<main>
+  <section class="card">
+    <h2>Nouvelle traduction</h2>
+    <form id="job-form">
+      <label>
+        URL vidéo (YouTube, X, etc.) ou chemin local
+        <input type="text" id="url" name="url" placeholder="https://youtube.com/watch?v=..." required>
+      </label>
+
+      <div class="row">
+        <fieldset>
+          <legend>Traduction</legend>
+          <label class="radio">
+            <input type="radio" name="quality_translation" value="free" checked>
+            <span>Gratuit (Argos local)</span>
+          </label>
+          <label class="radio">
+            <input type="radio" name="quality_translation" value="premium" data-key="anthropic">
+            <span>Premium (Claude API) <em class="cost">~0.05€</em></span>
+          </label>
+        </fieldset>
+
+        <fieldset>
+          <legend>Voix FR</legend>
+          <label class="radio">
+            <input type="radio" name="quality_voice" value="free" checked>
+            <span>Gratuit (Piper local)</span>
+          </label>
+          <label class="radio">
+            <input type="radio" name="quality_voice" value="premium" data-key="openai">
+            <span>Premium (OpenAI TTS) <em class="cost">~0.30€</em></span>
+          </label>
+        </fieldset>
+      </div>
+
+      <div class="row">
+        <fieldset>
+          <legend>Voix Piper (mode gratuit)</legend>
+          <label class="radio">
+            <input type="radio" name="piper_voice" value="siwis" checked>
+            <span>Siwis (femme, claire) <em class="muted">recommandé</em></span>
+          </label>
+          <label class="radio">
+            <input type="radio" name="piper_voice" value="tom">
+            <span>Tom (homme)</span>
+          </label>
+          <label class="radio">
+            <input type="radio" name="piper_voice" value="upmc">
+            <span>UPMC (mixte)</span>
+          </label>
+        </fieldset>
+
+        <fieldset>
+          <legend>Modèle Whisper</legend>
+          <label class="radio">
+            <input type="radio" name="whisper_model" value="small">
+            <span>Small (rapide)</span>
+          </label>
+          <label class="radio">
+            <input type="radio" name="whisper_model" value="medium">
+            <span>Medium (équilibré)</span>
+          </label>
+          <label class="radio">
+            <input type="radio" name="whisper_model" value="large-v3" checked>
+            <span>Large-v3 (qualité max)</span>
+          </label>
+        </fieldset>
+      </div>
+
+      <div class="row">
+        <label class="check">
+          <input type="checkbox" name="natural_pace" checked>
+          <span>Mode naturel (voix non accélérée/ralentie) <em class="muted">recommandé</em></span>
+        </label>
+        <label class="check">
+          <input type="checkbox" name="keep_original_audio">
+          <span>Garder aussi la piste audio originale (EN)</span>
+        </label>
+        <label class="check">
+          <input type="checkbox" name="voice_clone" disabled>
+          <span>Cloner la voix originale <em>(à venir, premium uniquement)</em></span>
+        </label>
+      </div>
+
+      <div class="estimate-bar" id="estimate-bar">
+        <span>💰 Coût estimé : <strong id="cost-estimate">0.00 €</strong></span>
+        <span class="muted">(estimation pour 30 min de vidéo)</span>
+      </div>
+
+      <button type="submit" id="submit-btn">🚀 Lancer la traduction</button>
+    </form>
+  </section>
+
+  <section class="card hidden" id="job-section">
+    <h2>Job en cours</h2>
+    <div id="job-title" class="job-title"></div>
+    <div class="progress-list" id="progress-list"></div>
+    <div class="job-cost" id="job-cost"></div>
+    <a id="download-link" href="#" class="download-btn hidden">⬇️ Télécharger le MP4 FR</a>
+  </section>
+
+  <section class="card">
+    <h2>Historique</h2>
+    <div id="history-list" class="history-list">
+      <p class="muted">Aucune traduction pour l'instant.</p>
+    </div>
+  </section>
+</main>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

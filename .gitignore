@@ -1,0 +1,16 @@
+.env
+.env.local
+venv/
+__pycache__/
+*.pyc
+.DS_Store
+models/
+output/
+cache/
+*.mp4
+*.mp3
+*.wav
+*.webm
+*.m4a
+.vscode/
+.idea/
